@@ -67,16 +67,17 @@ body {
 .sidebar.collapsed .nav-icon { width: auto; font-size: 18px; }
 .sidebar.collapsed .sidebar-footer { padding: 14px 0; align-items: center; justify-content: center; }
 .sidebar.collapsed .user-info { justify-content: center; }
+/* Fica fora da .sidebar (overflow: hidden cortaria a metade sobre o conteúdo) e acompanha a borda dela */
 .sidebar-collapse-btn {
-  position: absolute; top: 18px; right: -13px;
+  position: fixed; top: 18px; left: 227px;
   width: 26px; height: 26px;
   background: var(--clay); border: none; border-radius: 50%;
   color: white; font-size: 12px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   z-index: 101; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  transition: transform 0.25s;
+  transition: left 0.25s ease, transform 0.25s;
 }
-.sidebar.collapsed .sidebar-collapse-btn { transform: rotate(180deg); right: -13px; }
+.sidebar.collapsed ~ .sidebar-collapse-btn { left: 47px; transform: rotate(180deg); }
 
 .sidebar-logo {
   padding: 28px 24px 20px;
@@ -226,7 +227,7 @@ body {
 /* PRINT / PDF */
 @media print {
   .sidebar, .page-header button, .venda-card-actions, .modal-overlay,
-  .btn, nav, .mobile-toggle { display: none !important; }
+  .btn, nav, .mobile-toggle, .sidebar-collapse-btn { display: none !important; }
   .main { margin-left: 0 !important; padding: 0 !important; }
   .page { display: block !important; }
   .page:not(#print-orcamento) { display: none !important; }
@@ -644,7 +645,8 @@ tbody tr:last-child td { border-bottom: none; }
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-240px); }
   .sidebar.open { transform: translateX(0); }
-  .main { margin-left: 0; padding: 20px 16px; }
+  .main, .main.sidebar-collapsed { margin-left: 0; padding: 20px 16px; }
+  .sidebar-collapse-btn { display: none; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: 1fr 1fr; }
   .product-grid { grid-template-columns: 1fr 1fr; }
@@ -1259,7 +1261,6 @@ tbody tr:last-child td { border-bottom: none; }
 
 <!-- SIDEBAR -->
 <nav class="sidebar" id="sidebar">
-  <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Recolher menu">◀</button>
   <div class="sidebar-logo">
     <h1>🏺 Argila</h1>
     <p>Gestão de Ateliê</p>
@@ -1315,6 +1316,7 @@ tbody tr:last-child td { border-bottom: none; }
     <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="window.parent.postMessage({ type: 'ARGILA_SIGN_OUT' }, window.location.origin)">Sair da conta</button>
   </div>
 </nav>
+<button class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Recolher menu" aria-label="Recolher menu">◀</button>
 
 <!-- MAIN CONTENT -->
 <main class="main">
@@ -3320,6 +3322,7 @@ function init() {
     const mn = document.querySelector('.main');
     if (sb) sb.classList.add('collapsed');
     if (mn) mn.classList.add('sidebar-collapsed');
+    atualizarBotaoSidebar();
   }
 }
 
@@ -3411,6 +3414,15 @@ function toggleSidebarCollapse() {
   sidebar.classList.toggle('collapsed');
   main.classList.toggle('sidebar-collapsed');
   localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+  atualizarBotaoSidebar();
+}
+
+function atualizarBotaoSidebar() {
+  const btn = document.getElementById('sidebar-collapse-btn');
+  if (!btn) return;
+  const label = document.getElementById('sidebar').classList.contains('collapsed') ? 'Expandir menu' : 'Recolher menu';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
 }
 
 // ==================== NAVIGATION ====================
