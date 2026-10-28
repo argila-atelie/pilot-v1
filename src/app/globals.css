@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0f0e0c;
+  --color-parchment: #f5f0e8;
+  --color-cream: #ede8dc;
+  --color-gold: #b8963e;
+  --color-gold-light: #d4af5a;
+  --color-gold-pale: #f5edd6;
+  --color-lex-red: #8b2020;
+  --color-lex-green: #2a6b3a;
+  --color-lex-blue: #1a4b8b;
+  --color-muted: #6b6456;
+  --color-border: #d4c9b0;
+
+  --font-playfair: var(--font-playfair);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  body {
+    @apply bg-parchment text-ink min-h-screen antialiased font-sans;
+  }
+}
