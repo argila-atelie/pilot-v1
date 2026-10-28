@@ -6703,18 +6703,120 @@ function exportarDados() {
   toast('Dados exportados com sucesso!');
 }
 
+// ==================== IMPORTAÇÃO ====================
+const IMPORT_MAX_BYTES = 20 * 1024 * 1024;
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// Regras por coleção: campos numéricos, referências a outros registros e campos de texto obrigatórios.
+const COLECOES_BACKUP = {
+  produtos:   { num: ['preco','custo','estoque'], texto: ['nome'] },
+  vendas:     { num: ['qtd','total','valor_unit','frete','desconto','sinal'], refs: ['produto_id','cliente_id'] },
+  clientes:   { num: [], texto: ['nome'] },
+  materiais:  { num: ['qtd','min','qtd_comprada','qtd_utilizada'], texto: ['nome'] },
+  producao:   { num: ['qtd','etapa','custo_estimado'], refs: ['produto_id','cliente_id'] },
+  transacoes: { num: ['valor'] },
+};
+const CONFIG_NUM = ['margem','hora','energia','desp_ind','desp_fin','impostos','lucro_pct'];
+
+// Valida um backup e devolve uma cópia normalizada. Lança Error (com .detalhes) se houver problemas.
+function validarBackup(raw) {
+  if (!isPlainObject(raw)) throw new Error('O arquivo não contém um backup do Argila.');
+  const chaves = [...Object.keys(COLECOES_BACKUP), 'config', 'estoque_argilas', 'estoque_esmaltes'];
+  if (!chaves.some(k => k in raw)) throw new Error('O arquivo não parece ser um backup do Argila.');
+
+  const erros = [];
+  const vazio = v => v === undefined || v === null || v === '';
+  const toNum = (v, onde) => {
+    if (vazio(v)) return v;
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.trim().replace(',', '.')) : NaN;
+    if (!Number.isFinite(n)) erros.push(`${onde} deve ser um número`);
+    return Number.isFinite(n) ? n : v;
+  };
+  const toId = v => typeof v === 'number' ? String(v) : v;
+
+  const out = { ...raw };
+  for (const [col, regra] of Object.entries(COLECOES_BACKUP)) {
+    if (raw[col] === undefined) { out[col] = []; continue; }
+    if (!Array.isArray(raw[col])) { erros.push(`${col}: deveria ser uma lista`); continue; }
+    const ids = new Set();
+    out[col] = raw[col].map((item, i) => {
+      const onde = `${col} nº ${i + 1}`;
+      if (!isPlainObject(item)) { erros.push(`${onde}: registro inválido`); return item; }
+      const r = { ...item, id: toId(item.id) };
+      if (typeof r.id !== 'string' || !ID_RE.test(r.id)) erros.push(`${onde}: id ausente ou inválido`);
+      else if (ids.has(r.id)) erros.push(`${onde}: id "${r.id}" repetido`);
+      else ids.add(r.id);
+      for (const ref of regra.refs || []) {
+        if (vazio(r[ref])) continue;
+        r[ref] = toId(r[ref]);
+        if (typeof r[ref] !== 'string' || !ID_RE.test(r[ref])) erros.push(`${onde}: ${ref} inválido`);
+      }
+      for (const campo of regra.texto || []) {
+        if (typeof r[campo] !== 'string') erros.push(`${onde}: ${campo} ausente ou inválido`);
+      }
+      for (const campo of regra.num) {
+        if (campo in r) r[campo] = toNum(r[campo], `${onde}: ${campo}`);
+      }
+      if (col === 'producao' && !vazio(r.etapa) && !(Number.isInteger(r.etapa) && r.etapa >= 0 && r.etapa <= 5)) {
+        erros.push(`${onde}: etapa deve ser de 0 a 5`);
+      }
+      if (col === 'transacoes' && !['receita','despesa'].includes(r.tipo)) {
+        erros.push(`${onde}: tipo deve ser "receita" ou "despesa"`);
+      }
+      if (col === 'vendas' && !vazio(r.tipo_entrega) && typeof r.tipo_entrega !== 'string') {
+        erros.push(`${onde}: tipo_entrega inválido`);
+      }
+      return r;
+    });
+  }
+
+  if (raw.config !== undefined) {
+    if (!isPlainObject(raw.config)) erros.push('config: formato inválido');
+    else {
+      out.config = { ...createEmptyDB().config, ...raw.config };
+      for (const campo of CONFIG_NUM) if (campo in raw.config) out.config[campo] = toNum(raw.config[campo], `config: ${campo}`);
+    }
+  }
+  for (const k of ['estoque_argilas','estoque_esmaltes']) {
+    if (raw[k] !== undefined && !(isPlainObject(raw[k]) && Object.values(raw[k]).every(isPlainObject))) erros.push(`${k}: formato inválido`);
+  }
+
+  if (erros.length) {
+    const e = new Error(`Foram encontrados ${erros.length} problema(s) no arquivo.`);
+    e.detalhes = erros;
+    throw e;
+  }
+  return out;
+}
+
 function importarDados(input) {
   const file = input.files[0];
+  input.value = ''; // permite escolher o mesmo arquivo de novo
   if(!file) return;
+  if (file.size > IMPORT_MAX_BYTES) return toast('Arquivo grande demais para um backup (máx. 20 MB).', 'warn');
   const reader = new FileReader();
   reader.onload = e => {
+    let backup;
     try {
-      const imported = JSON.parse(e.target.result);
-      db = { ...db, ...imported };
-      saveDB();
-      renderAll();
-      toast('Dados importados com sucesso!');
-    } catch { toast('Arquivo inválido!', 'warn'); }
+      backup = validarBackup(JSON.parse(e.target.result));
+    } catch (err) {
+      const motivo = err instanceof SyntaxError ? 'O arquivo não é um JSON válido.' : err.message;
+      const lista = err.detalhes || [];
+      const detalhes = lista.length
+        ? '\n\n' + lista.slice(0, 8).join('\n') + (lista.length > 8 ? `\n… e mais ${lista.length - 8}.` : '')
+        : '';
+      alert(`Backup não importado. ${motivo}${detalhes}\n\nSeus dados atuais não foram alterados.`);
+      return;
+    }
+    const resumo = Object.keys(COLECOES_BACKUP).map(k => `• ${k}: ${backup[k].length}`).join('\n');
+    if (!confirm(`Importar este backup?\n\n${resumo}\n\nTodos os dados atuais serão substituídos pelos do arquivo.`)) return;
+    db = { ...createEmptyDB(), ...backup };
+    saveDB();
+    try { loadConfig(); } catch (e) {}
+    populateSelects();
+    renderAll();
+    toast('Dados importados com sucesso!');
   };
   reader.readAsText(file);
 }
