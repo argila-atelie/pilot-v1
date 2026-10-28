@@ -12,6 +12,17 @@ Este workspace agora abre o Argila na rota `/`. O app original estático foi pre
 
 Para publicar, conecte este repositório a um host compatível com Next.js e cadastre as mesmas variáveis de ambiente no ambiente de produção. O host precisa executar o servidor Next.js; a pasta `public/argila` isolada não fornece autenticação nem persistência na nuvem.
 
+## Publicar para uso pessoal
+
+O app aceita cadastro aberto por padrão. Cada conta enxerga somente os próprios dados (RLS), mas qualquer pessoa com a URL poderia criar uma conta e usar a cota do seu projeto Supabase. Depois de publicar:
+
+1. Em Supabase → Authentication → URL Configuration, informe o domínio publicado em **Site URL** e em **Redirect URLs**.
+2. Crie a sua conta pela tela de login e importe o backup, se houver.
+3. Em Supabase → Authentication → Sign In / Providers, desative **Allow new users to sign up**. Esse é o bloqueio efetivo: a API passa a recusar novos cadastros.
+4. No host, defina `NEXT_PUBLIC_ALLOW_SIGNUP=false` e publique novamente para esconder a opção de cadastro na tela de login.
+
+Para liberar um novo cadastro no futuro, reative a opção no Supabase (e a variável, se quiser o botão de volta) ou convide o usuário em Authentication → Users.
+
 ## Persistência atual
 
 Cada usuário autenticado recebe uma linha própria em `argila_workspace_data`, protegida por RLS. O payload JSON mantém o formato de backup legado para reduzir o risco da primeira migração. Gravações usam revisão otimista para detectar conflitos entre sessões. A primeira versão oferece um espaço individual por conta; colaboração de várias contas no mesmo ateliê exige a próxima etapa de associação `studio_members` e políticas RLS por ateliê.

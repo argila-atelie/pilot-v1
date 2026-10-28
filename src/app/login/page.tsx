@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
+// Esconde o cadastro na interface. O bloqueio efetivo é desativar "Allow new users to sign up" no Supabase.
+const signupEnabled = process.env.NEXT_PUBLIC_ALLOW_SIGNUP !== "false";
+
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState("");
@@ -96,15 +99,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-muted">
-           {isRegistering ? "Já tem sua conta?" : "Ainda não tem conta?"} 
-           <button 
-             onClick={() => { setIsRegistering(!isRegistering); setError(""); setSuccessMsg(""); }}
-             className="text-gold font-semibold underline ml-1 cursor-pointer bg-transparent border-none"
-           >
-             {isRegistering ? "Faça login" : "Criar acesso restrito"}
-           </button>
-        </div>
+        {signupEnabled && (
+          <div className="mt-6 text-center text-xs text-muted">
+             {isRegistering ? "Já tem sua conta?" : "Ainda não tem conta?"}
+             <button
+               onClick={() => { setIsRegistering(!isRegistering); setError(""); setSuccessMsg(""); }}
+               className="text-gold font-semibold underline ml-1 cursor-pointer bg-transparent border-none"
+             >
+               {isRegistering ? "Faça login" : "Criar acesso restrito"}
+             </button>
+          </div>
+        )}
       </div>
     </div>
   );
