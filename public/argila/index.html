@@ -1890,7 +1890,8 @@ tbody tr:last-child td { border-bottom: none; }
     </div>
     <div class="card">
       <div class="card-title">Backup de Dados</div>
-      <p style="font-size:13px;color:var(--smoke);margin-bottom:16px">Exporte todos os dados do sistema para um arquivo JSON.</p>
+      <p style="font-size:13px;color:var(--smoke);margin-bottom:6px">Exporte todos os dados do sistema para um arquivo JSON e guarde-o fora do navegador. Recomendado ao menos uma vez por mês.</p>
+      <p id="backup-status" style="font-size:12px;color:var(--smoke);margin-bottom:16px"></p>
       <div style="display:flex;gap:10px">
         <button class="btn btn-outline" onclick="exportarDados()">📥 Exportar Dados</button>
         <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">📤 Importar Dados</button>
@@ -3360,6 +3361,27 @@ function loadConfig() {
   document.getElementById('cfg-nome').value = c.nome;
   document.getElementById('cfg-ceramista').value = c.ceramista;
   document.getElementById('cfg-moeda').value = c.moeda;
+  atualizarStatusBackup();
+}
+
+// ==================== LEMBRETE DE BACKUP ====================
+const BACKUP_LEMBRETE_DIAS = 30;
+
+function diasDesdeBackup() {
+  const ultimo = db.config?.ultimo_backup ? new Date(db.config.ultimo_backup) : null;
+  if (!ultimo || isNaN(ultimo)) return null;
+  return Math.floor((Date.now() - ultimo) / 86400000);
+}
+
+function atualizarStatusBackup() {
+  const el = document.getElementById('backup-status');
+  if (!el) return;
+  const dias = diasDesdeBackup();
+  el.textContent = dias === null
+    ? 'Nenhum backup exportado ainda.'
+    : `Último backup exportado em ${new Date(db.config.ultimo_backup).toLocaleDateString('pt-BR')}` +
+      (dias === 0 ? ' (hoje).' : ` (há ${dias} dia(s)).`);
+  el.style.color = dias === null || dias > BACKUP_LEMBRETE_DIAS ? 'var(--red)' : 'var(--smoke)';
 }
 
 function salvarParamsFinanceiros() {
@@ -6559,6 +6581,22 @@ function checkAlerts() {
       tocarAlertaPrazo();
     }
   }
+
+  // Lembrete de backup: só faz sentido quando já há dados cadastrados
+  const temDados = ['produtos','vendas','clientes','materiais','producao','transacoes'].some(k => db[k]?.length);
+  const dias = diasDesdeBackup();
+  if (temDados && (dias === null || dias > BACKUP_LEMBRETE_DIAS)) {
+    alertas.innerHTML += `
+      <div class="alert alert-warn" style="margin-bottom:16px">
+        <span class="alert-icon">💾</span>
+        <div>
+          <strong>${dias === null ? 'Você ainda não exportou um backup.' : `Seu último backup foi há ${dias} dias.`}</strong>
+          Guarde uma cópia dos dados fora do navegador.
+          <button class="btn btn-sm btn-primary" style="margin-left:12px;padding:4px 12px;font-size:11px" onclick="exportarDados()">Exportar agora</button>
+        </div>
+      </div>
+    `;
+  }
 }
 
 // ==================== CHARTS ====================
@@ -6693,6 +6731,10 @@ function updateChartsRelatorios() {
 
 // ==================== DATA MGMT ====================
 function exportarDados() {
+  db.config.ultimo_backup = new Date().toISOString();
+  saveDB();
+  atualizarStatusBackup();
+  checkAlerts();
   const data = JSON.stringify(db, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -7485,6 +7527,8 @@ window.addEventListener('message', event => {
     try { populateSelects(); } catch (e) {}
     saveDB();
   }
+  // Os alertas do dashboard foram calculados no init() com o cache local; recalcula com os dados da nuvem.
+  try { checkAlerts(); } catch (e) {}
 });
 
 init();
