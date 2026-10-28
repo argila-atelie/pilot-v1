@@ -19,8 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      {/* Extensões como Grammarly adicionam atributos ao <body> antes da hidratação; só os atributos desta tag são ignorados. */}
       <body
         className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable} font-sans`}
+        suppressHydrationWarning
       >
         <ClientLayout>{children}</ClientLayout>
       </body>
