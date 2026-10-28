@@ -23,6 +23,10 @@ O app aceita cadastro aberto por padrão. Cada conta enxerga somente os próprio
 
 Para liberar um novo cadastro no futuro, reative a opção no Supabase (e a variável, se quiser o botão de volta) ou convide o usuário em Authentication → Users.
 
+### Backups
+
+O plano gratuito do Supabase não oferece backup para download. Exporte os dados em Configurações → Exportar Dados e guarde o JSON fora do navegador. O app registra a data da última exportação e mostra um lembrete no dashboard quando ela passa de 30 dias.
+
 ## Persistência atual
 
 Cada usuário autenticado recebe uma linha própria em `argila_workspace_data`, protegida por RLS. O payload JSON mantém o formato de backup legado para reduzir o risco da primeira migração. Gravações usam revisão otimista para detectar conflitos entre sessões. A primeira versão oferece um espaço individual por conta; colaboração de várias contas no mesmo ateliê exige a próxima etapa de associação `studio_members` e políticas RLS por ateliê.
