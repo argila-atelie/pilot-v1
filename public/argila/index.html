@@ -3471,6 +3471,8 @@ function initModalOverlays() {
 // ==================== FORMAT ====================
 function fmt(v) { return 'R$ ' + (+v || 0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 function id() { return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+// Escapa texto vindo dos dados antes de inserir em HTML (conteúdo ou atributo entre aspas).
+function esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]); }
 
 // ==================== POPULATE SELECTS ====================
 // ==================== POPULATE SELECTS ====================
@@ -3510,7 +3512,7 @@ function atualizarSugestoesVenda() {
   const dl = document.getElementById('venda-sugestoes');
   if (!dl) return;
   dl.innerHTML = db.produtos
-    .map(p => `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} — ${fmt(p.preco)}</option>`)
+    .map(p => `<option value="${esc(p.nome)}" data-preco="${p.preco}">${esc(p.nome)} — ${fmt(p.preco)}</option>`)
     .join('');
 
   // Auto-fill price if exact match
@@ -3532,7 +3534,7 @@ function populateSelects() {
       : '<option value="">Selecione um produto do catálogo...</option>';
 
     db.produtos.forEach(p => {
-      ps.innerHTML += `<option value="${p.id}" data-preco="${p.preco}" data-custo="${p.custo||0}" data-cat="${p.categoria||''}" data-estoque="${p.estoque||0}">${p.emoji||'🏺'} ${p.nome} — ${fmt(p.preco)}</option>`;
+      ps.innerHTML += `<option value="${p.id}" data-preco="${p.preco}" data-custo="${p.custo||0}" data-cat="${esc(p.categoria||'')}" data-estoque="${p.estoque||0}">${esc(p.emoji||'🏺')} ${esc(p.nome)} — ${fmt(p.preco)}</option>`;
     });
 
     ps.onchange = () => {
@@ -3566,7 +3568,7 @@ function populateSelects() {
   if (pp) {
     pp.innerHTML = '<option value="">Selecione um produto</option>';
     db.produtos.forEach(p => {
-      pp.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+      pp.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
     });
   }
 
@@ -3575,7 +3577,7 @@ function populateSelects() {
   if (pc) {
     pc.innerHTML = '<option value="">— Sem cliente (produção própria) —</option>';
     db.clientes.forEach(c => {
-      pc.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+      pc.innerHTML += `<option value="${c.id}">${esc(c.nome)}</option>`;
     });
   }
 
@@ -3586,7 +3588,7 @@ function populateSelects() {
   if (vc) {
     vc.innerHTML = '<option value="">Sem cliente (varejo)</option>';
     db.clientes.forEach(c => {
-      vc.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+      vc.innerHTML += `<option value="${c.id}">${esc(c.nome)}</option>`;
     });
   }
 }
@@ -3701,8 +3703,8 @@ function renderDashboard() {
   } else {
     ub.innerHTML = ultimas.map(v => `
       <tr>
-        <td>${v.produto_nome || '—'}</td>
-        <td>${v.cliente_nome || 'Varejo'}</td>
+        <td>${esc(v.produto_nome || '—')}</td>
+        <td>${esc(v.cliente_nome || 'Varejo')}</td>
         <td style="font-weight:600">${fmt(v.total)}</td>
         <td>${statusBadge(v.status)}</td>
       </tr>
@@ -3718,9 +3720,9 @@ function renderDashboard() {
     pt.innerHTML = '<div class="timeline">' + emProd.map(p => `
       <div class="tl-item">
         <div class="tl-dot"></div>
-        <div class="tl-title">${p.produto_nome} (${p.qtd} un)</div>
+        <div class="tl-title">${esc(p.produto_nome)} (${esc(p.qtd)} un)</div>
         <div class="tl-desc">${ETAPAS[p.etapa]}</div>
-        <div class="tl-time">${p.obs || ''}</div>
+        <div class="tl-time">${esc(p.obs || '')}</div>
       </div>
     `).join('') + '</div>';
   }
@@ -3756,7 +3758,7 @@ function renderWidgetEntregasSemana() {
       : `⏰ em ${v._diff}d`;
     return `<div class="entregas-semana-item ${cls}">
       <div class="entregas-semana-item-info">
-        <div class="entregas-semana-item-nome">${v.produto_nome || '—'} · ${v.cliente_nome || 'Varejo'}</div>
+        <div class="entregas-semana-item-nome">${esc(v.produto_nome || '—')} · ${esc(v.cliente_nome || 'Varejo')}</div>
         <div class="entregas-semana-item-sub">📅 ${new Date(v.prazo).toLocaleDateString('pt-BR')} · ${fmt(v.total)}</div>
       </div>
       <div class="entregas-semana-item-dias">${diasTxt}</div>
@@ -3817,8 +3819,8 @@ function filtrarTransacoes(tipo, el) {
   tbody.innerHTML = lista.map(t => `
     <tr>
       <td>${new Date(t.data).toLocaleDateString('pt-BR')}</td>
-      <td>${t.descricao}</td>
-      <td><span class="badge badge-smoke">${t.categoria}</span></td>
+      <td>${esc(t.descricao)}</td>
+      <td><span class="badge badge-smoke">${esc(t.categoria)}</span></td>
       <td>${t.tipo === 'receita' ?
         '<span class="badge badge-green">Receita</span>' :
         '<span class="badge badge-red">Despesa</span>'}</td>
@@ -3841,12 +3843,12 @@ function renderEstoque() {
       const low = emEstoque <= m.min;
       return `
         <tr>
-          <td><strong>${m.nome}</strong></td>
-          <td><span class="badge badge-clay">${m.tipo}</span></td>
-          <td style="text-align:center;color:var(--smoke)">${comprada} <small>${m.unidade}</small></td>
-          <td style="text-align:center;color:var(--red)">${utilizada} <small>${m.unidade}</small></td>
-          <td style="text-align:center;font-weight:700;color:var(--earth)">${emEstoque} <small>${m.unidade}</small></td>
-          <td>${m.min} ${m.unidade}</td>
+          <td><strong>${esc(m.nome)}</strong></td>
+          <td><span class="badge badge-clay">${esc(m.tipo)}</span></td>
+          <td style="text-align:center;color:var(--smoke)">${comprada} <small>${esc(m.unidade)}</small></td>
+          <td style="text-align:center;color:var(--red)">${utilizada} <small>${esc(m.unidade)}</small></td>
+          <td style="text-align:center;font-weight:700;color:var(--earth)">${emEstoque} <small>${esc(m.unidade)}</small></td>
+          <td>${esc(m.min)} ${esc(m.unidade)}</td>
           <td>
             ${low ? '<span class="badge badge-red">⚠ Baixo</span>' : '<span class="badge badge-green">OK</span>'}
             <div class="progress-bar" style="width:80px;display:inline-block;vertical-align:middle;margin-left:8px">
@@ -3870,8 +3872,8 @@ function renderEstoque() {
   } else {
     pecas.innerHTML = produtosComEstoque.map(p => `
       <tr>
-        <td>${p.emoji || '🏺'} ${p.nome}</td>
-        <td><strong>${p.estoque}</strong> un</td>
+        <td>${esc(p.emoji || '🏺')} ${esc(p.nome)}</td>
+        <td><strong>${esc(p.estoque)}</strong> un</td>
         <td>${fmt(p.preco)}</td>
         <td style="font-weight:600">${fmt((p.estoque||0) * p.preco)}</td>
       </tr>
@@ -4003,7 +4005,7 @@ function renderArgilas() {
             <div>
               <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke);display:block;margin-bottom:4px">Qtd. em estoque (kg)</label>
               <input type="number" min="0" step="0.1"
-                value="${estoqueInfo.qtd || ''}"
+                value="${esc(estoqueInfo.qtd || '')}"
                 placeholder="0"
                 class="argila-estoque-input"
                 style="width:100%"
@@ -4012,7 +4014,7 @@ function renderArgilas() {
             <div>
               <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke);display:block;margin-bottom:4px">Preço/kg (R$)</label>
               <input type="number" min="0" step="0.01"
-                value="${estoqueInfo.preco_kg || ''}"
+                value="${esc(estoqueInfo.preco_kg || '')}"
                 placeholder="0,00"
                 class="argila-estoque-input"
                 style="width:100%"
@@ -4027,7 +4029,7 @@ function renderArgilas() {
               class="argila-estoque-input"
               style="width:100%;min-height:50px;resize:vertical;text-align:left;padding:6px 8px"
               onblur="salvarEstoqueArgila('${a.id}','obs',this.value)"
-            >${estoqueInfo.obs || ''}</textarea>
+            >${esc(estoqueInfo.obs || '')}</textarea>
           </div>
         </div>
 
@@ -4045,7 +4047,7 @@ function renderArgilas() {
           </div>
           <div style="text-align:right">
             ${(estoqueInfo.qtd || 0) > 0
-              ? `<span style="font-size:12px;font-weight:700;color:var(--earth)">${estoqueInfo.qtd} kg</span>`
+              ? `<span style="font-size:12px;font-weight:700;color:var(--earth)">${esc(estoqueInfo.qtd)} kg</span>`
               : `<span style="font-size:11px;color:var(--smoke)">Sem estoque</span>`}
             ${estoqueInfo.preco_kg > 0 ? `<div style="font-size:10px;color:var(--smoke)">R$ ${(+estoqueInfo.preco_kg).toFixed(2).replace('.',',')}/kg</div>` : ''}
           </div>
@@ -4219,14 +4221,14 @@ function renderEsmaltes() {
             <div>
               <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke);display:block;margin-bottom:4px">Qtd. em estoque (ml)</label>
               <input type="number" min="0" step="10"
-                value="${info.qtd||''}" placeholder="0"
+                value="${esc(info.qtd||'')}" placeholder="0"
                 class="argila-estoque-input" style="width:100%"
                 onchange="salvarEstoqueEsmalte('${e.id}','qtd',+this.value)">
             </div>
             <div>
               <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke);display:block;margin-bottom:4px">Preço/100ml (R$)</label>
               <input type="number" min="0" step="0.01"
-                value="${info.preco_ml||''}" placeholder="0,00"
+                value="${esc(info.preco_ml||'')}" placeholder="0,00"
                 class="argila-estoque-input" style="width:100%"
                 onchange="salvarEstoqueEsmalte('${e.id}','preco_ml',+this.value)">
             </div>
@@ -4236,7 +4238,7 @@ function renderEsmaltes() {
             <textarea placeholder="Ex: Aplicar em 3 camadas, usar em biscoito apenas..."
               class="argila-estoque-input"
               style="width:100%;min-height:48px;resize:vertical;text-align:left;padding:6px 8px"
-              onblur="salvarEstoqueEsmalte('${e.id}','obs',this.value)">${info.obs||''}</textarea>
+              onblur="salvarEstoqueEsmalte('${e.id}','obs',this.value)">${esc(info.obs||'')}</textarea>
           </div>
         </div>
 
@@ -4253,7 +4255,7 @@ function renderEsmaltes() {
           </div>
           <div style="text-align:right">
             ${(info.qtd||0)>0
-              ? `<span style="font-size:12px;font-weight:700;color:var(--earth)">${info.qtd} ml</span>`
+              ? `<span style="font-size:12px;font-weight:700;color:var(--earth)">${esc(info.qtd)} ml</span>`
               : `<span style="font-size:11px;color:var(--smoke)">Sem estoque</span>`}
             ${info.preco_ml>0?`<div style="font-size:10px;color:var(--smoke)">R$ ${(+info.preco_ml).toFixed(2).replace('.',',')}/100ml</div>`:''}
           </div>
@@ -4297,7 +4299,7 @@ function onProdutoProducaoChange() {
     const v = vendas[0];
     const num = (db.vendas.indexOf(v)+1).toString().padStart(4,'0');
     if (wrap) wrap.style.display = '';
-    if (txt) txt.innerHTML = `Pedido <strong>#${num}</strong> de <strong>${v.cliente_nome||'cliente'}</strong> aguarda esta peça — ${fmt(v.total)}`;
+    if (txt) txt.innerHTML = `Pedido <strong>#${num}</strong> de <strong>${esc(v.cliente_nome||'cliente')}</strong> aguarda esta peça — ${fmt(v.total)}`;
     const pc = document.getElementById('prod-cliente');
     if (pc && v.cliente_id) pc.value = v.cliente_id;
   } else {
@@ -4459,22 +4461,22 @@ function buildProdCard(p) {
 
   // Client selector options
   const clienteOptions = `<option value="">— Sem cliente —</option>` +
-    db.clientes.map(c => `<option value="${c.id}" ${c.id === (p.cliente_id||'') ? 'selected' : ''}>${c.nome}</option>`).join('');
+    db.clientes.map(c => `<option value="${c.id}" ${c.id === (p.cliente_id||'') ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');
 
   return `
     <div class="prod-card ${borderCls}" id="prodcard-${p.id}">
       <!-- TOPO: info do produto + cliente -->
       <div class="prod-card-top">
         <div style="flex:1;min-width:0">
-          <div class="prod-card-produto">${p.produto_nome || '—'}
-            <span style="font-size:13px;font-weight:400;color:var(--smoke);margin-left:6px">${p.qtd}×</span>
+          <div class="prod-card-produto">${esc(p.produto_nome || '—')}
+            <span style="font-size:13px;font-weight:400;color:var(--smoke);margin-left:6px">${esc(p.qtd)}×</span>
           </div>
 
           <!-- Cliente inline: exibe ou permite vincular -->
           <div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--smoke);font-weight:700;text-transform:uppercase;letter-spacing:0.05em">👤 Cliente:</span>
             ${clienteNome
-              ? `<span style="font-size:13px;font-weight:700;color:var(--earth)">${clienteNome}</span>
+              ? `<span style="font-size:13px;font-weight:700;color:var(--earth)">${esc(clienteNome)}</span>
                  <button onclick="desvincularClienteProducao('${p.id}')" style="font-size:10px;background:transparent;border:none;color:var(--smoke);cursor:pointer;text-decoration:underline">alterar</button>`
               : `<select onchange="vincularClienteProducao('${p.id}',this.value)"
                    style="font-size:12px;padding:3px 8px;border:1.5px solid var(--sand-dark);border-radius:6px;
@@ -4508,7 +4510,7 @@ function buildProdCard(p) {
       <div class="prod-stepper">${stepper}</div>
 
       <!-- CAMPO OBSERVAÇÕES INICIAIS -->
-      ${p.obs ? `<div style="margin:0 18px 10px;font-size:12px;color:var(--smoke);background:var(--sand);padding:8px 12px;border-radius:6px;border-left:3px solid var(--clay-light)">📌 <strong>Obs. iniciais:</strong> ${p.obs}</div>` : ''}
+      ${p.obs ? `<div style="margin:0 18px 10px;font-size:12px;color:var(--smoke);background:var(--sand);padding:8px 12px;border-radius:6px;border-left:3px solid var(--clay-light)">📌 <strong>Obs. iniciais:</strong> ${esc(p.obs)}</div>` : ''}
 
       <!-- CAMPO OBSERVAÇÕES / IMPREVISTOS -->
       <div class="prod-obs-area">
@@ -4520,7 +4522,7 @@ function buildProdCard(p) {
 Ex: Peça trincou na secagem, esmalte aplicado duas vezes, aguardando forno liberado, cor diferente do esperado."
           onblur="salvarObsProducao('${p.id}',this.value)"
           oninput="this.className='prod-obs-input'+(this.value?' has-content':'')"
-        >${p.obs_imprevisto||''}</textarea>
+        >${esc(p.obs_imprevisto||'')}</textarea>
         ${p.obs_imprevisto ? `<div style="margin-top:4px;font-size:11px;color:var(--red);font-weight:600">⚠ Há ocorrência registrada nesta peça</div>` : ''}
       </div>
 
@@ -4630,15 +4632,15 @@ function renderProdutos() {
             <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
               <span style="background:var(--clay);color:white;font-size:10px;font-weight:800;
                 min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;
-                justify-content:center;flex-shrink:0;margin-top:1px">${passo.num}</span>
-              <span style="font-size:12px;font-weight:700;color:var(--earth)">${passo.titulo}</span>
+                justify-content:center;flex-shrink:0;margin-top:1px">${esc(passo.num)}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--earth)">${esc(passo.titulo)}</span>
             </div>
             ${passo.opcoes.length > 0 ? `
             <div style="padding-left:28px">
               ${passo.opcoes.map(o => `
                 <div style="display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px;color:var(--charcoal)">
                   <span style="width:4px;height:4px;background:var(--clay-light);border-radius:50%;flex-shrink:0"></span>
-                  ${o}
+                  ${esc(o)}
                 </div>`).join('')}
             </div>` : ''}
           </div>`).join('')
@@ -4647,7 +4649,7 @@ function renderProdutos() {
             <span style="font-size:13px;flex-shrink:0;margin-top:1px">${s.icon}</span>
             <div style="flex:1;min-width:0">
               <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke)">${s.label}: </span>
-              <span style="font-size:12px;color:var(--charcoal)">${s.val}</span>
+              <span style="font-size:12px;color:var(--charcoal)">${esc(s.val)}</span>
             </div>
           </div>`).join('');
 
@@ -4658,10 +4660,10 @@ function renderProdutos() {
         <div style="background:linear-gradient(135deg,var(--sand) 0%,var(--clay-light) 100%);padding:18px 18px 14px;position:relative">
           ${isPersonalizavel ? `<span style="position:absolute;top:10px;right:10px;background:var(--clay);color:white;font-size:9px;font-weight:700;padding:2px 8px;border-radius:12px;text-transform:uppercase;letter-spacing:0.05em">✏️ Personalizável</span>` : ''}
           <div style="display:flex;align-items:center;gap:12px">
-            <div style="font-size:42px;line-height:1">${p.emoji || '🏺'}</div>
+            <div style="font-size:42px;line-height:1">${esc(p.emoji || '🏺')}</div>
             <div>
-              <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:700;color:var(--earth);line-height:1.1">${p.nome}</div>
-              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--smoke)">${p.categoria}</span>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:700;color:var(--earth);line-height:1.1">${esc(p.nome)}</div>
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--smoke)">${esc(p.categoria)}</span>
             </div>
           </div>
           <!-- Preço destaque -->
@@ -4669,12 +4671,12 @@ function renderProdutos() {
             <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--charcoal)">${fmt(precoVenda)}</div>
             ${precoCalc > 0 && Math.abs(precoVenda - precoCalc) > 0.01 ? `<div style="font-size:11px;color:var(--clay)">calculado: ${fmt(precoCalc)}</div>` : ''}
           </div>
-          ${p.preco_variantes ? `<div style="margin-top:4px;font-size:11px;color:var(--earth);font-weight:500">${p.preco_variantes}</div>` : ''}
+          ${p.preco_variantes ? `<div style="margin-top:4px;font-size:11px;color:var(--earth);font-weight:500">${esc(p.preco_variantes)}</div>` : ''}
         </div>
 
         <!-- Especificações / Passos do catálogo -->
         <div style="padding:14px 16px;flex:1">
-          ${p.medidas ? `<div style="display:flex;align-items:center;gap:6px;padding:4px 0 10px;border-bottom:1px solid rgba(180,150,120,0.1);margin-bottom:10px"><span style="font-size:12px">📐</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke)">Medida: </span><span style="font-size:12px;color:var(--charcoal);font-weight:600">${p.medidas}</span></div>` : ''}
+          ${p.medidas ? `<div style="display:flex;align-items:center;gap:6px;padding:4px 0 10px;border-bottom:1px solid rgba(180,150,120,0.1);margin-bottom:10px"><span style="font-size:12px">📐</span><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--smoke)">Medida: </span><span style="font-size:12px;color:var(--charcoal);font-weight:600">${esc(p.medidas)}</span></div>` : ''}
           ${passosHTML}
 
           <!-- Personalização -->
@@ -4684,7 +4686,7 @@ function renderProdutos() {
               <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
                 <button onclick="togglePersonalizavel('${p.id}','sim')" style="padding:3px 10px;border-radius:6px;border:1.5px solid ${isPersonalizavel?'var(--green)':'var(--sand-dark)'};background:${isPersonalizavel?'var(--green)':'transparent'};color:${isPersonalizavel?'white':'var(--smoke)'};font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Sim</button>
                 <button onclick="togglePersonalizavel('${p.id}','nao')" style="padding:3px 10px;border-radius:6px;border:1.5px solid ${!isPersonalizavel?'var(--smoke)':'var(--sand-dark)'};background:${!isPersonalizavel?'var(--smoke)':'transparent'};color:${!isPersonalizavel?'white':'var(--smoke)'};font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Não</button>
-                ${isPersonalizavel ? `<input type="number" step="0.01" min="0" value="${p.acrescimo_personalizacao||''}" placeholder="Acréscimo R$" onchange="salvarAcrescimo('${p.id}',this.value)" style="width:110px;border:1px solid var(--sand-dark);border-radius:6px;padding:3px 7px;font-size:11px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--clay)'" onblur="this.style.borderColor='var(--sand-dark)'">` : ''}
+                ${isPersonalizavel ? `<input type="number" step="0.01" min="0" value="${esc(p.acrescimo_personalizacao||'')}" placeholder="Acréscimo R$" onchange="salvarAcrescimo('${p.id}',this.value)" style="width:110px;border:1px solid var(--sand-dark);border-radius:6px;padding:3px 7px;font-size:11px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--clay)'" onblur="this.style.borderColor='var(--sand-dark)'">` : ''}
               </div>
             </div>
             <textarea id="obs-pers-${p.id}"
@@ -4692,7 +4694,7 @@ function renderProdutos() {
               ${!isPersonalizavel ? 'disabled' : ''}
               onblur="salvarObsProduto('${p.id}',this.value)"
               style="width:100%;min-height:52px;border:1.5px solid ${isPersonalizavel?'var(--sand-dark)':'rgba(180,150,120,0.1)'};border-radius:6px;padding:6px 8px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--charcoal);background:${isPersonalizavel?'var(--white)':'rgba(242,232,217,0.3)'};resize:vertical;outline:none;opacity:${isPersonalizavel?'1':'0.5'}"
-              onfocus="this.style.borderColor='var(--clay)'" onblur="this.style.borderColor='var(--sand-dark)';salvarObsProduto('${p.id}',this.value)">${p.obs_personalizacao||''}</textarea>
+              onfocus="this.style.borderColor='var(--clay)'" onblur="this.style.borderColor='var(--sand-dark)';salvarObsProduto('${p.id}',this.value)">${esc(p.obs_personalizacao||'')}</textarea>
           </div>
         </div>
 
@@ -4829,12 +4831,12 @@ function renderVendas(filtro) {
 
     // Info chips
     const infos = [
-      { label:'Qtd', value: v.qtd + ' un' },
+      { label:'Qtd', value: esc(v.qtd) + ' un' },
       { label:'Valor unit.', value: fmt(v.valor_unit || 0) },
       { label:'Pagamento', value: v.pagamento
           ? v.pagamento.startsWith('50%')
-            ? '🔀 ' + v.pagamento
-            : v.pagamento
+            ? '🔀 ' + esc(v.pagamento)
+            : esc(v.pagamento)
           : '—' },
       { label:'Status Pagamento', value: v.status_pagamento === 'pago'
           ? '<span style="color:var(--green);font-weight:700">✅ Pago</span>'
@@ -4847,14 +4849,14 @@ function renderVendas(filtro) {
           v.status_parcela2 === 'pago'
             ? '<span style="color:var(--green);font-weight:700">✅ Pago</span>'
             : '<span style="color:var(--gold);font-weight:700">⏳ Pendente</span>' } : null,
-      v.modelo      ? { label:'Modelo',      value: v.modelo }      : null,
-      v.cor         ? { label:'Cor',          value: v.cor }         : null,
-      v.formato     ? { label:'Formato',      value: v.formato }     : null,
-      v.acabamento  ? { label:'Acabamento',   value: v.acabamento }  : null,
-      v.tamanho     ? { label:'Tamanho',      value: v.tamanho }     : null,
-      v.argila      ? { label:'Argila',       value: v.argila }      : null,
-      v.esmalte_tipo? { label:'Esmalte',      value: v.esmalte_tipo}: null,
-      v.personalizacao ? { label:'Personal.', value: v.personalizacao } : null,
+      v.modelo      ? { label:'Modelo',      value: esc(v.modelo) }      : null,
+      v.cor         ? { label:'Cor',          value: esc(v.cor) }         : null,
+      v.formato     ? { label:'Formato',      value: esc(v.formato) }     : null,
+      v.acabamento  ? { label:'Acabamento',   value: esc(v.acabamento) }  : null,
+      v.tamanho     ? { label:'Tamanho',      value: esc(v.tamanho) }     : null,
+      v.argila      ? { label:'Argila',       value: esc(v.argila) }      : null,
+      v.esmalte_tipo? { label:'Esmalte',      value: esc(v.esmalte_tipo)}: null,
+      v.personalizacao ? { label:'Personal.', value: esc(v.personalizacao) } : null,
     ].filter(Boolean);
 
     const infoGrid = infos.map(inf =>
@@ -4876,9 +4878,9 @@ function renderVendas(filtro) {
         <div class="venda-card-header" onclick="toggleVendaCard('${v.id}')">
           <div class="venda-num">#${num}</div>
           <div class="venda-main">
-            <div class="venda-produto-nome">${v.produto_nome || '—'}</div>
+            <div class="venda-produto-nome">${esc(v.produto_nome || '—')}</div>
             <div class="venda-cliente-row">
-              <span>👤 ${v.cliente_nome || '<em>Varejo</em>'}</span>
+              <span>👤 ${v.cliente_nome ? esc(v.cliente_nome) : '<em>Varejo</em>'}</span>
               <span>🗓 Compra: <strong>${dataStr}</strong></span>
               ${v.prazo ? `<span>🚚 Entrega: <strong>${prazoStr}</strong></span>` : ''}
             </div>
@@ -4915,11 +4917,11 @@ function renderVendas(filtro) {
             </div>
             ${v.tipo_entrega ? `<div class="venda-info-item">
               <div class="venda-info-label">Tipo de Entrega</div>
-              <div class="venda-info-value">${v.tipo_entrega.replace('_',' ')}</div>
+              <div class="venda-info-value">${esc(v.tipo_entrega.replace('_',' '))}</div>
             </div>` : ''}
             ${v.rastreio ? `<div class="venda-info-item">
               <div class="venda-info-label">Rastreio</div>
-              <div class="venda-info-value">${v.rastreio}</div>
+              <div class="venda-info-value">${esc(v.rastreio)}</div>
             </div>` : ''}
             ${v.sinal > 0 ? `<div class="venda-info-item">
               <div class="venda-info-label">Sinal Pago</div>
@@ -4932,15 +4934,15 @@ function renderVendas(filtro) {
           </div>
 
           <!-- Referências e obs técnicas -->
-          ${v.referencias ? `<div style="font-size:12px;color:var(--smoke);margin-bottom:10px">🔗 <strong>Ref:</strong> ${v.referencias}</div>` : ''}
-          ${v.obs_tecnicas ? `<div style="font-size:12px;color:var(--smoke);background:rgba(201,150,58,0.08);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px">📐 <strong>Obs. técnicas:</strong> ${v.obs_tecnicas}</div>` : ''}
+          ${v.referencias ? `<div style="font-size:12px;color:var(--smoke);margin-bottom:10px">🔗 <strong>Ref:</strong> ${esc(v.referencias)}</div>` : ''}
+          ${v.obs_tecnicas ? `<div style="font-size:12px;color:var(--smoke);background:rgba(201,150,58,0.08);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px">📐 <strong>Obs. técnicas:</strong> ${esc(v.obs_tecnicas)}</div>` : ''}
 
           <!-- Campo de observações editável inline -->
           <div class="venda-obs-row">
             <div class="venda-obs-label">📝 Observações / Anotações</div>
             <textarea class="venda-obs-textarea" id="vobs-${v.id}"
               placeholder="Anote qualquer informação sobre este pedido: combinados, pendências, ajustes, mensagens do cliente..."
-              onblur="salvarObsVenda('${v.id}')">${v.obs || ''}</textarea>
+              onblur="salvarObsVenda('${v.id}')">${esc(v.obs || '')}</textarea>
           </div>
 
           <!-- Ações -->
@@ -4957,7 +4959,7 @@ function renderVendas(filtro) {
             <button class="btn btn-sm btn-outline" onclick="gerarOrcamentoPDF('${v.id}')">📄 Orçamento</button>
             <button class="btn btn-sm btn-ghost" onclick="excluirVendaLista('${v.id}')">🗑 Excluir</button>
             <div style="margin-left:auto;font-size:11px;color:var(--smoke)">
-              ${faseAtual ? `<span class="badge badge-clay">${FASES_VENDA.find(f=>f.key===faseAtual)?.icon} ${FASES_VENDA.find(f=>f.key===faseAtual)?.label||faseAtual}</span>` : ''}
+              ${faseAtual ? `<span class="badge badge-clay">${FASES_VENDA.find(f=>f.key===faseAtual)?.icon} ${FASES_VENDA.find(f=>f.key===faseAtual)?.label||esc(faseAtual)}</span>` : ''}
             </div>
           </div>
         </div>
@@ -5040,7 +5042,7 @@ function statusBadge(s) {
     em_producao: 'Em Produção',
     entregue: 'Entregue'
   };
-  return `<span class="badge ${map[s]||'badge-smoke'}">${labels[s]||s}</span>`;
+  return `<span class="badge ${map[s]||'badge-smoke'}">${labels[s]||esc(s)}</span>`;
 }
 
 // ==================== CLIENTES ====================
@@ -5110,11 +5112,11 @@ function renderClientes() {
 
     return `
       <div class="client-row-card">
-        <div class="client-mini-avatar">${ini}</div>
+        <div class="client-mini-avatar">${esc(ini)}</div>
         <div class="client-row-info">
-          <div class="client-row-name">${c.nome}</div>
-          <div class="client-row-sub">${subInfo || c.email || '—'} ${deadlineHtml}</div>
-          ${c.prefs ? `<div style="font-size:11px;color:var(--clay);margin-top:3px">★ ${c.prefs}</div>` : ''}
+          <div class="client-row-name">${esc(c.nome)}</div>
+          <div class="client-row-sub">${esc(subInfo || c.email || '—')} ${deadlineHtml}</div>
+          ${c.prefs ? `<div style="font-size:11px;color:var(--clay);margin-top:3px">★ ${esc(c.prefs)}</div>` : ''}
         </div>
         <div class="client-row-stats">
           <div class="client-stat">
@@ -5268,13 +5270,13 @@ function renderPedidosCliente(clienteId) {
     }
 
     const tags = [
-      v.modelo ? `<span class="order-tag"><strong>Modelo:</strong> ${v.modelo}</span>` : '',
-      v.cor ? `<span class="order-tag"><strong>Cor:</strong> ${v.cor}</span>` : '',
-      v.formato ? `<span class="order-tag"><strong>Formato:</strong> ${v.formato}</span>` : '',
-      v.acabamento ? `<span class="order-tag"><strong>Acabamento:</strong> ${v.acabamento}</span>` : '',
-      v.tamanho ? `<span class="order-tag"><strong>Tamanho:</strong> ${v.tamanho}</span>` : '',
-      v.personalizacao ? `<span class="order-tag"><strong>Personal.:</strong> ${v.personalizacao}</span>` : '',
-      v.tipo_entrega ? `<span class="order-tag">🚚 ${v.tipo_entrega.replace('_',' ')}</span>` : '',
+      v.modelo ? `<span class="order-tag"><strong>Modelo:</strong> ${esc(v.modelo)}</span>` : '',
+      v.cor ? `<span class="order-tag"><strong>Cor:</strong> ${esc(v.cor)}</span>` : '',
+      v.formato ? `<span class="order-tag"><strong>Formato:</strong> ${esc(v.formato)}</span>` : '',
+      v.acabamento ? `<span class="order-tag"><strong>Acabamento:</strong> ${esc(v.acabamento)}</span>` : '',
+      v.tamanho ? `<span class="order-tag"><strong>Tamanho:</strong> ${esc(v.tamanho)}</span>` : '',
+      v.personalizacao ? `<span class="order-tag"><strong>Personal.:</strong> ${esc(v.personalizacao)}</span>` : '',
+      v.tipo_entrega ? `<span class="order-tag">🚚 ${esc(v.tipo_entrega.replace('_',' '))}</span>` : '',
     ].filter(Boolean).join('');
 
     const saldoReceber = v.total + (v.frete||0) - (v.desconto||0) - (v.sinal||0);
@@ -5284,7 +5286,7 @@ function renderPedidosCliente(clienteId) {
         <div class="order-card-header">
           <div>
             <div class="order-card-id">#${numPedido} · ${new Date(v.data).toLocaleDateString('pt-BR')}</div>
-            <div class="order-card-product">${v.produto_nome || '—'} <span style="font-size:13px;color:var(--smoke);font-weight:400">(${v.qtd}×)</span></div>
+            <div class="order-card-product">${esc(v.produto_nome || '—')} <span style="font-size:13px;color:var(--smoke);font-weight:400">(${esc(v.qtd)}×)</span></div>
             ${deadlineHtml ? `<div style="margin-top:4px">${deadlineHtml}</div>` : ''}
           </div>
           <div style="text-align:right">
@@ -5294,7 +5296,7 @@ function renderPedidosCliente(clienteId) {
           </div>
         </div>
         ${tags ? `<div class="order-tags">${tags}</div>` : ''}
-        ${v.obs_tecnicas ? `<div style="font-size:12px;color:var(--smoke);margin-top:6px;padding:8px;background:var(--sand);border-radius:6px">📝 ${v.obs_tecnicas}</div>` : ''}
+        ${v.obs_tecnicas ? `<div style="font-size:12px;color:var(--smoke);margin-top:6px;padding:8px;background:var(--sand);border-radius:6px">📝 ${esc(v.obs_tecnicas)}</div>` : ''}
         <div class="order-card-actions">
           <button class="btn btn-sm btn-outline" onclick="editarPedido('${v.id}')">✏️ Editar Pedido</button>
           <button class="btn btn-sm btn-ghost" onclick="mudarStatusVenda('${v.id}', 'pago');renderPedidosCliente('${clienteId}')" ${v.status==='pago'||v.status==='entregue'?'style="opacity:0.4;pointer-events:none"':''}>✓ Marcar Pago</button>
@@ -5323,10 +5325,10 @@ function renderHistoricoCliente(clienteId) {
             return `<tr>
               <td style="color:var(--smoke);font-size:11px">#${num}</td>
               <td>${new Date(v.data).toLocaleDateString('pt-BR')}</td>
-              <td>${v.produto_nome||'—'}</td>
-              <td>${v.qtd}</td>
+              <td>${esc(v.produto_nome||'—')}</td>
+              <td>${esc(v.qtd)}</td>
               <td style="font-weight:600">${fmt(v.total)}</td>
-              <td><span class="badge badge-smoke">${v.pagamento||'—'}</span></td>
+              <td><span class="badge badge-smoke">${esc(v.pagamento||'—')}</span></td>
               <td>${statusBadge(v.status)}</td>
             </tr>`;
           }).join('')}
@@ -5358,7 +5360,7 @@ function abrirModalPedido(vendaId, preClienteId) {
   const ps = document.getElementById('pe-produto');
   ps.innerHTML = '<option value="">Selecione um produto</option>';
   db.produtos.forEach(p => {
-    ps.innerHTML += `<option value="${p.id}" data-preco="${p.preco}">${p.nome} — ${fmt(p.preco)}</option>`;
+    ps.innerHTML += `<option value="${p.id}" data-preco="${p.preco}">${esc(p.nome)} — ${fmt(p.preco)}</option>`;
   });
   ps.onchange = atualizarPedidoValor;
 
@@ -5366,7 +5368,7 @@ function abrirModalPedido(vendaId, preClienteId) {
   const cs = document.getElementById('pe-cliente');
   cs.innerHTML = '<option value="">Sem cliente (varejo)</option>';
   db.clientes.forEach(c => {
-    cs.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+    cs.innerHTML += `<option value="${c.id}">${esc(c.nome)}</option>`;
   });
 
   const v = vendaId ? db.vendas.find(x => x.id === vendaId) : null;
@@ -5703,14 +5705,14 @@ function renderEntregas() {
         : `<span>${prazoStr}</span>`)
       : '—';
     const rastreioHtml = v.rastreio
-      ? `<a href="https://rastreamento.correios.com.br/app/index.php?objeto=${v.rastreio}" target="_blank" style="color:var(--clay);text-decoration:underline;font-weight:600">${v.rastreio}</a>`
+      ? `<a href="https://rastreamento.correios.com.br/app/index.php?objeto=${encodeURIComponent(v.rastreio)}" target="_blank" style="color:var(--clay);text-decoration:underline;font-weight:600">${esc(v.rastreio)}</a>`
       : `<input type="text" placeholder="Cód. Rastreio" value="" style="border:1px solid var(--sand-dark);border-radius:6px;padding:4px 8px;font-size:12px;width:140px" onblur="salvarRastreio('${v.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
     const whatsBtn = cli?.tel ? `<button class="btn btn-sm" style="background:#25D366;color:white;border:none;padding:4px 8px" onclick="enviarWhatsApp('${v.id}')">💬</button>` : '';
     return `
       <tr>
         <td>#${(db.vendas.indexOf(v)+1).toString().padStart(4,'0')}</td>
-        <td>${v.cliente_nome||'—'}</td>
-        <td>${v.produto_nome||'—'}</td>
+        <td>${esc(v.cliente_nome||'—')}</td>
+        <td>${esc(v.produto_nome||'—')}</td>
         <td style="font-size:12px">${prazoHtml}</td>
         <td>${rastreioHtml}</td>
         <td>${statusBadge(v.status)}</td>
@@ -5760,13 +5762,13 @@ function gerarInsightsIA() {
   const porCategoria = {};
   despesas.forEach(d => { porCategoria[d.categoria] = (porCategoria[d.categoria]||0) + d.valor; });
   const maiorCat = Object.entries(porCategoria).sort((a,b) => b[1]-a[1])[0];
-  if(maiorCat) insights.push(`<strong>📊 Maior custo:</strong> Você está gastando mais com <strong>${maiorCat[0]}</strong> (${fmt(maiorCat[1])}). Avalie se há formas de reduzir esse custo.`);
+  if(maiorCat) insights.push(`<strong>📊 Maior custo:</strong> Você está gastando mais com <strong>${esc(maiorCat[0])}</strong> (${fmt(maiorCat[1])}). Avalie se há formas de reduzir esse custo.`);
 
   // Produto mais vendido
   const porProduto = {};
   vendas.forEach(v => { porProduto[v.produto_nome] = (porProduto[v.produto_nome]||0) + v.qtd; });
   const maiorProd = Object.entries(porProduto).sort((a,b) => b[1]-a[1])[0];
-  if(maiorProd) insights.push(`<strong>🏆 Produto estrela:</strong> <strong>${maiorProd[0]}</strong> é seu produto mais vendido (${maiorProd[1]} unidades). Considere aumentar a produção.`);
+  if(maiorProd) insights.push(`<strong>🏆 Produto estrela:</strong> <strong>${esc(maiorProd[0])}</strong> é seu produto mais vendido (${maiorProd[1]} unidades). Considere aumentar a produção.`);
 
   // Margem
   const receita = vendas.reduce((s,v) => s+v.total, 0);
@@ -5779,7 +5781,7 @@ function gerarInsightsIA() {
 
   // Estoque baixo
   const baixos = db.materiais.filter(m => m.qtd <= m.min && m.min > 0);
-  if(baixos.length > 0) insights.push(`<strong>📦 Atenção ao estoque:</strong> ${baixos.map(m => m.nome).join(', ')} está(ão) com estoque baixo. Reponha antes que afete sua produção.`);
+  if(baixos.length > 0) insights.push(`<strong>📦 Atenção ao estoque:</strong> ${baixos.map(m => esc(m.nome)).join(', ')} está(ão) com estoque baixo. Reponha antes que afete sua produção.`);
 
   if(insights.length === 0) {
     insights.push('Continue registrando suas vendas e despesas para receber análises personalizadas e dicas para aumentar a lucratividade do seu ateliê.');
@@ -5983,7 +5985,7 @@ function onProdutoProducaoChange() {
     const v = vendas[0];
     const num = (db.vendas.indexOf(v)+1).toString().padStart(4,'0');
     if (wrap) wrap.style.display = '';
-    if (txt) txt.innerHTML = `Pedido <strong>#${num}</strong> de <strong>${v.cliente_nome||'cliente'}</strong> aguarda esta peça — ${fmt(v.total)}`;
+    if (txt) txt.innerHTML = `Pedido <strong>#${num}</strong> de <strong>${esc(v.cliente_nome||'cliente')}</strong> aguarda esta peça — ${fmt(v.total)}`;
     // Pre-select client
     const pc = document.getElementById('prod-cliente');
     if (pc && v.cliente_id) pc.value = v.cliente_id;
@@ -6515,7 +6517,7 @@ function checkAlerts() {
       <div class="alert alert-danger" style="margin-bottom:16px">
         <span class="alert-icon">⚠️</span>
         <div>
-          <strong>Estoque crítico:</strong> ${baixos.map(m => `${m.nome} (${m.qtd}${m.unidade})`).join(', ')} está abaixo do mínimo.
+          <strong>Estoque crítico:</strong> ${baixos.map(m => `${esc(m.nome)} (${esc(m.qtd)}${esc(m.unidade)})`).join(', ')} está abaixo do mínimo.
           <button class="btn btn-sm btn-primary" style="margin-left:12px;padding:4px 12px;font-size:11px" onclick="navTo('estoque',document.querySelectorAll('.nav-item')[3])">Ver Estoque</button>
         </div>
       </div>
@@ -6540,7 +6542,7 @@ function checkAlerts() {
     if (hoje.length) txt += `<strong>${hoje.length} entrega(s) para hoje!</strong> `;
     if (em2d.length) txt += `${em2d.length} entrega(s) nos próximos 2 dias. `;
 
-    const nomes = urgentes.map(v => v.produto_nome || '—').join(', ');
+    const nomes = urgentes.map(v => esc(v.produto_nome || '—')).join(', ');
     alertas.innerHTML += `
       <div class="deadline-alert-banner" style="margin-bottom:16px">
         <span class="alert-icon">🚨</span>
@@ -6965,16 +6967,16 @@ function renderFiringTable(queimas) {
   if (!tbody) return;
   tbody.innerHTML = queimas.map((q, i) => `
     <tr>
-      <td><input value="${q.tipo||''}" onchange="updateFiring(${i},'tipo',this.value)" style="width:100%;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
+      <td><input value="${esc(q.tipo||'')}" onchange="updateFiring(${i},'tipo',this.value)" style="width:100%;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
       <td>
         <select onchange="updateFiring(${i},'forno_tipo',this.value)" style="width:100%;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--white)">
           <option value="proprio" ${(q.forno_tipo||'proprio')==='proprio'?'selected':''}>Meu Forno</option>
           <option value="terceirizado" ${q.forno_tipo==='terceirizado'?'selected':''}>Terceirizado</option>
         </select>
       </td>
-      <td><input type="number" value="${q.kg||0}" min="0.1" step="0.1" onchange="updateFiring(${i},'kg',+this.value);calcFiringTotal()" style="width:80px;text-align:center;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
-      <td><input type="number" value="${q.perda||0}" min="0" max="100" onchange="updateFiring(${i},'perda',+this.value);calcFiringTotal()" style="width:60px;text-align:center;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
-      <td><input type="number" value="${q.custo_fornada||0}" step="0.01" oninput="updateFiring(${i},'custo_fornada',+this.value);calcFiringTotal()" style="width:110px;text-align:right;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
+      <td><input type="number" value="${esc(q.kg||0)}" min="0.1" step="0.1" onchange="updateFiring(${i},'kg',+this.value);calcFiringTotal()" style="width:80px;text-align:center;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
+      <td><input type="number" value="${esc(q.perda||0)}" min="0" max="100" onchange="updateFiring(${i},'perda',+this.value);calcFiringTotal()" style="width:60px;text-align:center;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
+      <td><input type="number" value="${esc(q.custo_fornada||0)}" step="0.01" oninput="updateFiring(${i},'custo_fornada',+this.value);calcFiringTotal()" style="width:110px;text-align:right;border:1px solid var(--sand-dark);border-radius:4px;padding:3px 6px;font-size:12px"></td>
       <td id="firing-row-total-${i}" style="font-weight:700;color:var(--earth);padding:4px 8px">R$ 0,00</td>
     </tr>
   `).join('');
@@ -7274,14 +7276,14 @@ function gerarOrcamentoPDF(vendaId) {
   const prazoStr = v.prazo ? new Date(v.prazo).toLocaleDateString('pt-BR') : '—';
   const dataStr = new Date(v.data).toLocaleDateString('pt-BR');
   const especsRows = [
-    v.modelo && `<tr><td>Modelo</td><td>${v.modelo}</td></tr>`,
-    v.cor && `<tr><td>Cor</td><td>${v.cor}</td></tr>`,
-    v.formato && `<tr><td>Formato</td><td>${v.formato}</td></tr>`,
-    v.acabamento && `<tr><td>Acabamento</td><td>${v.acabamento}</td></tr>`,
-    v.tamanho && `<tr><td>Tamanho</td><td>${v.tamanho}</td></tr>`,
-    v.argila && `<tr><td>Argila</td><td>${v.argila}</td></tr>`,
-    v.esmalte_tipo && `<tr><td>Esmalte</td><td>${v.esmalte_tipo}</td></tr>`,
-    v.personalizacao && `<tr><td>Personalização</td><td>${v.personalizacao}</td></tr>`,
+    v.modelo && `<tr><td>Modelo</td><td>${esc(v.modelo)}</td></tr>`,
+    v.cor && `<tr><td>Cor</td><td>${esc(v.cor)}</td></tr>`,
+    v.formato && `<tr><td>Formato</td><td>${esc(v.formato)}</td></tr>`,
+    v.acabamento && `<tr><td>Acabamento</td><td>${esc(v.acabamento)}</td></tr>`,
+    v.tamanho && `<tr><td>Tamanho</td><td>${esc(v.tamanho)}</td></tr>`,
+    v.argila && `<tr><td>Argila</td><td>${esc(v.argila)}</td></tr>`,
+    v.esmalte_tipo && `<tr><td>Esmalte</td><td>${esc(v.esmalte_tipo)}</td></tr>`,
+    v.personalizacao && `<tr><td>Personalização</td><td>${esc(v.personalizacao)}</td></tr>`,
   ].filter(Boolean).join('');
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>Orçamento #${num}</title>
@@ -7297,33 +7299,33 @@ function gerarOrcamentoPDF(vendaId) {
     @media print{body{margin:0}}
   </style></head><body>
   <h1>🏺 Orçamento / Proposta</h1>
-  <p><strong>${atelie}</strong>${ceramista ? ' · ' + ceramista : ''}</p>
+  <p><strong>${esc(atelie)}</strong>${ceramista ? ' · ' + esc(ceramista) : ''}</p>
   <p style="color:#7A7068;font-size:13px">Orçamento #${num} · Emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
   <h2>Cliente</h2>
-  <table><tr><th>Nome</th><td>${cli ? cli.nome : 'Varejo'}</td></tr>
-  ${cli?.tel ? `<tr><th>Telefone</th><td>${cli.tel}</td></tr>` : ''}
-  ${cli?.email ? `<tr><th>E-mail</th><td>${cli.email}</td></tr>` : ''}
+  <table><tr><th>Nome</th><td>${cli ? esc(cli.nome) : 'Varejo'}</td></tr>
+  ${cli?.tel ? `<tr><th>Telefone</th><td>${esc(cli.tel)}</td></tr>` : ''}
+  ${cli?.email ? `<tr><th>E-mail</th><td>${esc(cli.email)}</td></tr>` : ''}
   </table>
   <h2>Pedido</h2>
   <table>
-    <tr><th>Produto</th><td>${v.produto_nome || '—'}</td></tr>
-    <tr><th>Quantidade</th><td>${v.qtd} un</td></tr>
+    <tr><th>Produto</th><td>${esc(v.produto_nome || '—')}</td></tr>
+    <tr><th>Quantidade</th><td>${esc(v.qtd)} un</td></tr>
     <tr><th>Data do Pedido</th><td>${dataStr}</td></tr>
     <tr><th>Prazo de Entrega</th><td>${prazoStr}</td></tr>
-    <tr><th>Forma de Pagamento</th><td>${v.pagamento || '—'}</td></tr>
+    <tr><th>Forma de Pagamento</th><td>${esc(v.pagamento || '—')}</td></tr>
     ${especsRows}
-    ${v.obs_tecnicas ? `<tr><th>Observações</th><td>${v.obs_tecnicas}</td></tr>` : ''}
+    ${v.obs_tecnicas ? `<tr><th>Observações</th><td>${esc(v.obs_tecnicas)}</td></tr>` : ''}
   </table>
   <h2>Valores</h2>
   <table>
     <tr><th>Valor unitário</th><td>${fmt(v.valor_unit || 0)}</td></tr>
-    <tr><th>Quantidade</th><td>${v.qtd}</td></tr>
+    <tr><th>Quantidade</th><td>${esc(v.qtd)}</td></tr>
     ${v.frete ? `<tr><th>Frete</th><td>${fmt(v.frete)}</td></tr>` : ''}
     ${v.desconto ? `<tr><th>Desconto</th><td>− ${fmt(v.desconto)}</td></tr>` : ''}
     ${v.sinal ? `<tr><th>Sinal pago</th><td>${fmt(v.sinal)}</td></tr>` : ''}
   </table>
   <div class="total">Total: ${fmt(v.total)}</div>
-  <div class="footer">Este documento é um orçamento/proposta e não tem valor fiscal. · Gerado por ${atelie} via Argila Gestão de Ateliê.</div>
+  <div class="footer">Este documento é um orçamento/proposta e não tem valor fiscal. · Gerado por ${esc(atelie)} via Argila Gestão de Ateliê.</div>
   </body></html>`;
   const w = window.open('', '_blank', 'width=800,height=900');
   w.document.write(html);
